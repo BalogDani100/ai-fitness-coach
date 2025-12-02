@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -8,26 +9,75 @@ datasource db {
 }
 
 model User {
-  id             Int              @id @default(autoincrement())
-  email          String           @unique
-  passwordHash   String
-  createdAt      DateTime         @default(now())
-  fitnessProfile FitnessProfile?
+  id           Int              @id @default(autoincrement())
+  email        String           @unique
+  passwordHash String
+  createdAt    DateTime         @default(now())
+
+  fitnessProfile   FitnessProfile?
+  workoutTemplates WorkoutTemplate[]
+  workoutLogs      WorkoutLog[]
 }
 
 model FitnessProfile {
   id            Int      @id @default(autoincrement())
   user          User     @relation(fields: [userId], references: [id])
   userId        Int      @unique
-
   gender        String
   age           Int
-  heightCm      Float
-  weightKg      Float
+  heightCm      Int
+  weightKg      Int
   activityLevel String
   goalType      String
   trainingDays  String
+}
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+model WorkoutTemplate {
+  id        Int                     @id @default(autoincrement())
+  user      User                    @relation(fields: [userId], references: [id])
+  userId    Int
+  name      String
+  createdAt DateTime                @default(now())
+
+  exercises WorkoutExerciseTemplate[]
+  logs      WorkoutLog[]
+}
+
+model WorkoutExerciseTemplate {
+  id                Int             @id @default(autoincrement())
+  workoutTemplate   WorkoutTemplate @relation(fields: [workoutTemplateId], references: [id])
+  workoutTemplateId Int
+  name              String
+  muscleGroup       String
+  sets              Int
+  reps              Int
+  rir               Int
+  orderIndex        Int
+
+  setsLogged WorkoutSet[]
+}
+
+model WorkoutLog {
+  id                Int              @id @default(autoincrement())
+  user              User             @relation(fields: [userId], references: [id])
+  userId            Int
+  date              DateTime
+  workoutTemplate   WorkoutTemplate? @relation(fields: [workoutTemplateId], references: [id])
+  workoutTemplateId Int?
+  notes             String?
+  createdAt         DateTime         @default(now())
+
+  sets WorkoutSet[]
+}
+
+model WorkoutSet {
+  id                  Int                    @id @default(autoincrement())
+  workoutLog          WorkoutLog             @relation(fields: [workoutLogId], references: [id])
+  workoutLogId        Int
+  exerciseTemplate    WorkoutExerciseTemplate @relation(fields: [exerciseTemplateId], references: [id])
+  exerciseTemplateId  Int
+  setIndex            Int
+  weightKg            Float
+  reps                Int
+  rir                 Int?
 }

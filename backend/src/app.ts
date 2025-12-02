@@ -5,6 +5,8 @@ import { prisma } from './prisma';
 import { authRouter } from './routes/auth.routes';
 import { profileRouter } from './routes/profile.routes';
 import { authGuard, AuthRequest } from './middlewares/auth.middleware';
+import { workoutRouter } from './routes/workout.routes';
+
 
 export const app = express();
 
@@ -35,6 +37,8 @@ app.get('/db-health', async (_req, res) => {
 app.use('/auth', authRouter);
 
 app.use('/profile', profileRouter);
+
+app.use('/workouts', workoutRouter);
 
 app.get('/me', authGuard, async (req: AuthRequest, res) => {
   const userId = req.userId!;
