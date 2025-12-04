@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { getProfileMe } from '../api';
-import type { Macros, ProfileMeResponse } from '../api';
-import { useAuth } from '../auth/AuthContext';
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { getProfileMe } from "../api";
+import type { Macros, ProfileMeResponse } from "../api";
+import { useAuth } from "../auth/AuthContext";
 
 export const DashboardPage = () => {
   const { user, token, logout } = useAuth();
@@ -22,9 +22,9 @@ export const DashboardPage = () => {
         setMacros(res.macros);
       } catch (err: unknown) {
         if (err instanceof Error) {
-          setError(err.message || 'Failed to load profile');
+          setError(err.message || "Failed to load profile");
         } else {
-          setError('Failed to load profile');
+          setError("Failed to load profile");
         }
       } finally {
         if (mounted) setLoading(false);
@@ -37,7 +37,7 @@ export const DashboardPage = () => {
   }, [token]);
 
   if (!token) {
-    navigate('/login');
+    navigate("/login");
     return null;
   }
 
@@ -47,12 +47,12 @@ export const DashboardPage = () => {
         <div>
           <h1 className="text-xl font-semibold">AI Fitness Dashboard</h1>
           <p className="text-sm text-slate-400">
-            {user ? `Logged in as ${user.email}` : ''}
+            {user ? `Logged in as ${user.email}` : ""}
           </p>
         </div>
 
         <div className="flex items-center gap-4">
-          <nav className="flex items-center gap-3 text-sm">
+          <nav className="flex flex-wrap items-center gap-3 text-sm">
             <Link
               to="/profile"
               className="text-emerald-400 hover:text-emerald-300"
@@ -71,12 +71,33 @@ export const DashboardPage = () => {
             >
               Workout Logs
             </Link>
+            <Link to="/nutrition" className="text-slate-300 hover:text-white">
+              Nutrition
+            </Link>
+            <Link to="/ai-coach" className="text-slate-300 hover:text-white">
+              AI Coach
+            </Link>
+            <Link
+              to="/ai/workout-plan"
+              className="text-slate-300 hover:text-white"
+            >
+              AI Workout Plan
+            </Link>
+            <Link
+              to="/ai/meal-plan"
+              className="text-slate-300 hover:text-white"
+            >
+              AI Meal Plan
+            </Link>
+            <Link to="/progress" className="text-slate-300 hover:text-white">
+              Progress
+            </Link>
           </nav>
 
           <button
             onClick={() => {
               logout();
-              navigate('/login');
+              navigate("/login");
             }}
             className="px-3 py-1.5 rounded-lg text-sm bg-slate-800 hover:bg-slate-700"
           >
@@ -97,13 +118,13 @@ export const DashboardPage = () => {
           <>
             {!macros ? (
               <p className="text-slate-300">
-                You don&apos;t have a fitness profile yet. Go to{' '}
+                You don&apos;t have a fitness profile yet. Go to{" "}
                 <Link
                   to="/profile"
                   className="text-emerald-400 hover:text-emerald-300 underline"
                 >
                   Edit Profile
-                </Link>{' '}
+                </Link>{" "}
                 and fill in your data to get your daily targets.
               </p>
             ) : (
@@ -113,7 +134,7 @@ export const DashboardPage = () => {
                     Daily Target
                   </h2>
                   <p className="text-4xl font-bold text-slate-100">
-                    {macros.targetCalories}{' '}
+                    {macros.targetCalories}{" "}
                     <span className="text-lg font-medium">kcal</span>
                   </p>
                   <p className="text-sm text-slate-400 mt-2">
@@ -126,24 +147,24 @@ export const DashboardPage = () => {
                     Macros
                   </h2>
                   <p className="text-slate-300">
-                    Protein:{' '}
+                    Protein:{" "}
                     <span className="font-semibold text-slate-100">
                       {macros.proteinGrams}
-                    </span>{' '}
+                    </span>{" "}
                     g
                   </p>
                   <p className="text-slate-300 mt-1">
-                    Fat:{' '}
+                    Fat:{" "}
                     <span className="font-semibold text-slate-100">
                       {macros.fatGrams}
-                    </span>{' '}
+                    </span>{" "}
                     g
                   </p>
                   <p className="text-slate-300 mt-1">
-                    Carbs:{' '}
+                    Carbs:{" "}
                     <span className="font-semibold text-slate-100">
                       {macros.carbGrams}
-                    </span>{' '}
+                    </span>{" "}
                     g
                   </p>
                 </div>

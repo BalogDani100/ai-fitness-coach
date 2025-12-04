@@ -275,3 +275,196 @@ export function deleteWorkoutLog(token: string, id: number) {
     token
   );
 }
+
+// ---------- NUTRITION / MEALS ----------
+
+export type MealEntry = {
+  id: number;
+  userId: number;
+  date: string; // ISO string
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  createdAt: string;
+};
+
+export type MealDailyTotal = {
+  date: string; // "YYYY-MM-DD"
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};
+
+export type GetMealEntriesResponse = {
+  entries: MealEntry[];
+  totals: MealDailyTotal[];
+};
+
+export type CreateMealEntryRequest = {
+  date: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};
+
+export type CreateMealEntryResponse = {
+  entry: MealEntry;
+};
+
+export function getMealEntries(token: string, from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.append("from", from);
+  if (to) params.append("to", to);
+  const query = params.toString();
+  const path = query ? `/nutrition/entries?${query}` : "/nutrition/entries";
+
+  return request<GetMealEntriesResponse>(path, {}, token);
+}
+
+export function createMealEntry(token: string, data: CreateMealEntryRequest) {
+  return request<CreateMealEntryResponse>(
+    "/nutrition/entries",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+}
+
+export function deleteMealEntry(token: string, id: number) {
+  return request<{ success: boolean }>(
+    `/nutrition/entries/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+}
+
+// ---------- AI FEEDBACK / COACH ----------
+
+export type AiFeedback = {
+  id: number;
+  userId: number;
+  dateFrom: string;
+  dateTo: string;
+  feedbackType: string; // "WEEKLY_REVIEW" | "WORKOUT_PLAN" | "MEAL_PLAN" | ...
+  inputSummary: string;
+  resultText: string;
+  createdAt: string;
+};
+
+export type GetAiFeedbacksResponse = {
+  feedbacks: AiFeedback[];
+};
+
+export type CreateWeeklyReviewResponse = {
+  feedback: AiFeedback;
+};
+
+export type CreateWorkoutPlanResponse = {
+  feedback: AiFeedback;
+};
+
+export type CreateMealPlanResponse = {
+  feedback: AiFeedback;
+};
+
+export function getAiFeedbacks(token: string) {
+  return request<GetAiFeedbacksResponse>("/ai/feedbacks", {}, token);
+}
+
+export function createWeeklyReview(
+  token: string,
+  data?: { from?: string; to?: string }
+) {
+  return request<CreateWeeklyReviewResponse>(
+    "/ai/weekly-review",
+    {
+      method: "POST",
+      body: JSON.stringify(data ?? {}),
+    },
+    token
+  );
+}
+
+export function createWorkoutPlan(
+  token: string,
+  data: {
+    daysPerWeek: number;
+    splitType: string;
+    experience: string;
+    notes?: string;
+  }
+) {
+  return request<CreateWorkoutPlanResponse>(
+    "/ai/workout-plan",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+}
+
+export function createMealPlan(
+  token: string,
+  data: {
+    mealsPerDay: number;
+    preferences?: string;
+    avoid?: string;
+    notes?: string;
+  }
+) {
+  return request<CreateMealPlanResponse>(
+    "/ai/meal-plan",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+}
+
+// ---------- STATS / PROGRESS ----------
+
+export type NutritionDailyStat = {
+  date: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};
+
+export type WorkoutVolumeStat = {
+  muscleGroup: string;
+  sets: number;
+};
+
+export type WorkoutSessionsPerDayStat = {
+  date: string;
+  sessions: number;
+};
+
+export type StatsOverviewResponse = {
+  nutritionDaily: NutritionDailyStat[];
+  macros: Macros | null;
+  workoutSessionsPerDay: WorkoutSessionsPerDayStat[];
+  workoutVolumeByMuscleGroup: WorkoutVolumeStat[];
+};
+
+export function getStatsOverview(token: string, from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.append("from", from);
+  if (to) params.append("to", to);
+  const query = params.toString();
+  const path = query ? `/stats/overview?${query}` : "/stats/overview";
+
+  return request<StatsOverviewResponse>(path, {}, token);
+}

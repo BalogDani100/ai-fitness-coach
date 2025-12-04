@@ -9,20 +9,23 @@ datasource db {
 }
 
 model User {
-  id           Int              @id @default(autoincrement())
-  email        String           @unique
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
   passwordHash String
-  createdAt    DateTime         @default(now())
+  createdAt    DateTime @default(now())
 
   fitnessProfile   FitnessProfile?
   workoutTemplates WorkoutTemplate[]
   workoutLogs      WorkoutLog[]
+  mealEntries      MealEntry[]
+
+  aiFeedbacks AiFeedback[]
 }
 
 model FitnessProfile {
-  id            Int      @id @default(autoincrement())
-  user          User     @relation(fields: [userId], references: [id])
-  userId        Int      @unique
+  id            Int    @id @default(autoincrement())
+  user          User   @relation(fields: [userId], references: [id])
+  userId        Int    @unique
   gender        String
   age           Int
   heightCm      Int
@@ -33,11 +36,11 @@ model FitnessProfile {
 }
 
 model WorkoutTemplate {
-  id        Int                     @id @default(autoincrement())
-  user      User                    @relation(fields: [userId], references: [id])
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
   userId    Int
   name      String
-  createdAt DateTime                @default(now())
+  createdAt DateTime @default(now())
 
   exercises WorkoutExerciseTemplate[]
   logs      WorkoutLog[]
@@ -71,13 +74,41 @@ model WorkoutLog {
 }
 
 model WorkoutSet {
-  id                  Int                    @id @default(autoincrement())
-  workoutLog          WorkoutLog             @relation(fields: [workoutLogId], references: [id])
-  workoutLogId        Int
-  exerciseTemplate    WorkoutExerciseTemplate @relation(fields: [exerciseTemplateId], references: [id])
-  exerciseTemplateId  Int
-  setIndex            Int
-  weightKg            Float
-  reps                Int
-  rir                 Int?
+  id                 Int                     @id @default(autoincrement())
+  workoutLog         WorkoutLog              @relation(fields: [workoutLogId], references: [id])
+  workoutLogId       Int
+  exerciseTemplate   WorkoutExerciseTemplate @relation(fields: [exerciseTemplateId], references: [id])
+  exerciseTemplateId Int
+  setIndex           Int
+  weightKg           Float
+  reps               Int
+  rir                Int?
+}
+
+model MealEntry {
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+
+  date DateTime
+  name String
+
+  calories Int
+  protein  Int
+  carbs    Int
+  fat      Int
+
+  createdAt DateTime @default(now())
+}
+
+model AiFeedback {
+  id           Int      @id @default(autoincrement())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       Int
+  dateFrom     DateTime
+  dateTo       DateTime
+  feedbackType String
+  inputSummary String
+  resultText   String
+  createdAt    DateTime @default(now())
 }
