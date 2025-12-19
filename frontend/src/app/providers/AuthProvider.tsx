@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
-import type { User } from '../api';
+import React, { createContext, useContext, useState } from "react";
+import type { User } from "../../features/auth/api/auth.dto";
 
 type AuthContextType = {
   user: User | null;
@@ -10,17 +10,19 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const TOKEN_KEY = 'ai-fitness-token';
-const USER_KEY = 'ai-fitness-user';
+const TOKEN_KEY = "ai-fitness-token";
+const USER_KEY = "ai-fitness-user";
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [token, setToken] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null;
+    if (typeof window === "undefined") return null;
     return localStorage.getItem(TOKEN_KEY);
   });
 
   const [user, setUser] = useState<User | null>(() => {
-    if (typeof window === 'undefined') return null;
+    if (typeof window === "undefined") return null;
     const storedUser = localStorage.getItem(USER_KEY);
     if (!storedUser) return null;
     try {
@@ -55,7 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export function useAuth(): AuthContextType {
   const ctx = useContext(AuthContext);
   if (!ctx) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return ctx;
 }

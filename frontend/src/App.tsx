@@ -7,7 +7,7 @@ import { WorkoutTemplatesPage } from "./pages/WorkoutTemplatesPage";
 import { WorkoutLogsPage } from "./pages/WorkoutLogsPage";
 import { NutritionPage } from "./pages/NutritionPage";
 import { WorkoutSessionPage } from "./pages/WorkoutSessionPage";
-import { useAuth } from "./auth/AuthContext";
+import { useAuth } from "./app/providers/AuthProvider";
 import { AiCoachPage } from "./pages/AiCoachPage";
 import { AiWorkoutPlanPage } from "./pages/AiWorkoutPlanPage";
 import { AiMealPlanPage } from "./pages/AiMealPlanPage";

@@ -1,16 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../app/providers/AuthProvider";
 import {
   createWorkoutTemplate,
   deleteWorkoutTemplate,
   getWorkoutTemplates,
-} from "../api";
+} from "../features/workouts/api/workouts.client";
 import type {
   CreateWorkoutTemplateRequestExercise,
   GetWorkoutTemplatesResponse,
   WorkoutTemplate,
-} from "../api";
+} from "../features/workouts/api/workouts.dto";
+import { AppLayout } from "../app/layout/AppLayout";
 
 type NewExercise = {
   name: string;
@@ -48,7 +49,7 @@ export const WorkoutTemplatesPage = () => {
         setTemplates(res.templates);
       } catch (err: unknown) {
         if (err instanceof Error) {
-          setError(err.message);
+          setError(err.message || "Failed to load workout templates");
         } else {
           setError("Failed to load workout templates");
         }
@@ -100,7 +101,7 @@ export const WorkoutTemplatesPage = () => {
     setExercises((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!token) return;
 
@@ -136,10 +137,8 @@ export const WorkoutTemplatesPage = () => {
         exercises: validExercises,
       });
 
-      // prepend new template
       setTemplates((prev) => [res.template, ...prev]);
 
-      // reset form
       setName("Upper 1");
       setExercises([
         { name: "", muscleGroup: "", sets: "", reps: "", rir: "" },
@@ -180,178 +179,260 @@ export const WorkoutTemplatesPage = () => {
     }
   };
 
+  const templateCount = templates.length;
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => navigate("/dashboard")}
-          className="text-sm text-slate-300 hover:text-white"
-        >
-          ← Back to Dashboard
-        </button>
-        <h1 className="text-lg font-semibold">Workout Templates</h1>
-        <div className="w-24" />
-      </header>
+    <AppLayout>
+      <div className="space-y-8">
+        {error && (
+          <div className="card border-red-500/60 bg-red-950/60 text-sm text-red-100">
+            <p className="font-semibold">Hiba történt</p>
+            <p className="mt-1 text-xs text-red-200">{error}</p>
+          </div>
+        )}
 
-      <main className="px-6 py-8 max-w-5xl mx-auto space-y-8">
-        <section className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl">
-          <h2 className="text-base font-semibold mb-4">Create new template</h2>
-
-          {error && (
-            <p className="mb-4 text-sm text-red-400 bg-red-950/40 border border-red-800 rounded-lg px-3 py-2">
-              {error}
-            </p>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <section className="card">
+          <div className="page-section-header">
             <div>
-              <label className="block text-sm mb-1 text-slate-200">
-                Template name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm"
-                placeholder="Upper 1, Lower 1, Push, Pull..."
-              />
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Workout templates
+              </p>
+              <h1 className="mt-1 text-2xl font-semibold text-slate-50 sm:text-3xl">
+                Plan your training week
+              </h1>
+              <p className="mt-2 text-xs text-slate-400">
+                Create reusable workout templates for your usual sessions (e.g.
+                &quot;Upper 1&quot;, &quot;Legs&quot;). You can then log real
+                workouts from these templates.
+              </p>
             </div>
+            <div className="flex flex-col items-end gap-2 text-xs">
+              <span className="pill-accent pill">
+                {templateCount} active template
+                {templateCount === 1 ? "" : "s"}
+              </span>
+              <span className="pill">Uses RIR for progression</span>
+            </div>
+          </div>
+        </section>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-slate-300">
-                    Exercises
-                  </h3>
-                  <p className="text-[11px] text-slate-400 mt-1 max-w-md">
-                    <span className="font-semibold">RIR (Reps In Reserve)</span>{" "}
-                    = how many reps you could still do at the end of the set.
-                    For example, if you stop at 10 reps and feel you could do 2
-                    more, that&apos;s{" "}
-                    <span className="font-semibold">RIR 2</span>.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={addExerciseRow}
-                  className="text-xs px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700"
-                >
-                  + Add exercise
-                </button>
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          <div className="card relative overflow-hidden">
+            <div className="pointer-events-none absolute -left-16 -top-10 h-40 w-40 rounded-full bg-violet-500/20 blur-3xl" />
+            <div className="pointer-events-none absolute -right-24 bottom-[-40px] h-48 w-48 rounded-full bg-fuchsia-500/10 blur-3xl" />
+
+            <h2 className="page-section-title mb-1">Create new template</h2>
+            <p className="page-section-subtitle mb-4">
+              Define a name and add exercises with sets, reps and RIR. You can
+              reuse this structure every time you train.
+            </p>
+
+            <form onSubmit={handleSubmit} className="space-y-4 text-sm">
+              <div className="space-y-1">
+                <label htmlFor="template-name">Template name</label>
+                <input
+                  id="template-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Upper 1, Lower A, Push, Pull..."
+                />
               </div>
 
               <div className="space-y-2">
-                {exercises.map((ex, index) => (
-                  <div
-                    key={index}
-                    className="grid grid-cols-1 md:grid-cols-5 gap-2 items-start"
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-400">
+                    Exercises
+                  </p>
+                  <button
+                    type="button"
+                    onClick={addExerciseRow}
+                    className="text-[11px] font-semibold text-violet-300 hover:text-violet-200"
                   >
-                    <input
-                      type="text"
-                      value={ex.name}
-                      onChange={(e) =>
-                        handleExerciseChange(index, "name", e.target.value)
-                      }
-                      placeholder="Exercise name"
-                      className="rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm"
-                    />
-                    <input
-                      type="text"
-                      value={ex.muscleGroup}
-                      onChange={(e) =>
-                        handleExerciseChange(
-                          index,
-                          "muscleGroup",
-                          e.target.value
-                        )
-                      }
-                      placeholder="Muscle group"
-                      className="rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm"
-                    />
-                    <input
-                      type="number"
-                      value={ex.sets}
-                      onChange={(e) =>
-                        handleExerciseChange(index, "sets", e.target.value)
-                      }
-                      placeholder="Sets"
-                      className="rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm"
-                    />
-                    <input
-                      type="number"
-                      value={ex.reps}
-                      onChange={(e) =>
-                        handleExerciseChange(index, "reps", e.target.value)
-                      }
-                      placeholder="Reps"
-                      className="rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm"
-                    />
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        value={ex.rir}
-                        onChange={(e) =>
-                          handleExerciseChange(index, "rir", e.target.value)
-                        }
-                        placeholder="RIR"
-                        className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm"
-                        title="Reps In Reserve – how many reps you could still do at the end of the set"
-                      />
-                      {exercises.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeExerciseRow(index)}
-                          className="px-2 text-xs rounded-lg bg-red-900/60 border border-red-800 text-red-200"
-                        >
-                          X
-                        </button>
-                      )}
+                    + Add exercise
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {exercises.map((ex, index) => (
+                    <div
+                      key={index}
+                      className="rounded-2xl bg-slate-950/80 p-3 ring-1 ring-slate-800/80"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[11px] font-semibold text-slate-300">
+                          Exercise #{index + 1}
+                        </p>
+                        {exercises.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeExerciseRow(index)}
+                            className="text-[10px] text-slate-500 hover:text-red-300"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <label className="text-[11px]">Name</label>
+                          <input
+                            type="text"
+                            value={ex.name}
+                            onChange={(e) =>
+                              handleExerciseChange(
+                                index,
+                                "name",
+                                e.target.value
+                              )
+                            }
+                            placeholder="Bench press"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px]">Muscle group</label>
+                          <input
+                            type="text"
+                            value={ex.muscleGroup}
+                            onChange={(e) =>
+                              handleExerciseChange(
+                                index,
+                                "muscleGroup",
+                                e.target.value
+                              )
+                            }
+                            placeholder="Chest"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                        <div className="space-y-1">
+                          <label className="text-[11px]">Sets</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={ex.sets}
+                            onChange={(e) =>
+                              handleExerciseChange(
+                                index,
+                                "sets",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px]">Reps</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={ex.reps}
+                            onChange={(e) =>
+                              handleExerciseChange(
+                                index,
+                                "reps",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px]">RIR</label>
+                          <input
+                            type="number"
+                            min={0}
+                            max={5}
+                            value={ex.rir}
+                            onChange={(e) =>
+                              handleExerciseChange(index, "rir", e.target.value)
+                            }
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 text-[11px] text-slate-500">
+                <p>Only fully filled rows will be saved.</p>
+                <button type="submit" className="btn-primary" disabled={saving}>
+                  {saving ? "Saving template…" : "Save template"}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div className="card">
+            <div className="page-section-header">
+              <div>
+                <h2 className="page-section-title">Your templates</h2>
+                <p className="page-section-subtitle">
+                  Start a new workout from a template or delete ones you no
+                  longer use.
+                </p>
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 disabled:cursor-not-allowed text-slate-900 transition-colors"
-              >
-                {saving ? "Saving…" : "Save template"}
-              </button>
-            </div>
-          </form>
-        </section>
-
-        <section>
-          <h2 className="text-base font-semibold mb-3">Your templates</h2>
-          {loading ? (
-            <p className="text-slate-300">Loading templates…</p>
-          ) : templates.length === 0 ? (
-            <p className="text-slate-400 text-sm">
-              You have no templates yet. Create one above.
-            </p>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {templates.map((tpl) => (
-                <div
-                  key={tpl.id}
-                  className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow"
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div>
-                      <h3 className="font-semibold mb-1">{tpl.name}</h3>
-                      <p className="text-xs text-slate-500">
-                        Created at: {new Date(tpl.createdAt).toLocaleString()}
-                      </p>
+            {loading ? (
+              <div className="mt-4 space-y-2 text-xs text-slate-400">
+                <div className="h-4 w-1/2 rounded bg-slate-800" />
+                <div className="h-4 w-2/3 rounded bg-slate-800" />
+                <div className="h-4 w-1/3 rounded bg-slate-800" />
+              </div>
+            ) : templates.length === 0 ? (
+              <div className="mt-4 rounded-xl border border-dashed border-slate-700/80 bg-slate-950/70 px-4 py-6 text-xs text-slate-400">
+                You have no templates yet. Create one on the left to speed up
+                logging your sessions.
+              </div>
+            ) : (
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {templates.map((tpl) => (
+                  <div
+                    key={tpl.id}
+                    className="rounded-2xl bg-slate-950/80 p-4 ring-1 ring-slate-800/80 transition hover:ring-violet-500/70"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-50">
+                          {tpl.name}
+                        </h3>
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          Created at {new Date(tpl.createdAt).toLocaleString()}
+                        </p>
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          {tpl.exercises.length} exercise
+                          {tpl.exercises.length === 1 ? "" : "s"}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1">
+
+                    <div className="mt-3 space-y-1.5 text-[11px] text-slate-300">
+                      {tpl.exercises.map((ex) => (
+                        <div
+                          key={ex.id}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <div>
+                            <p className="font-semibold">{ex.name}</p>
+                            <p className="text-[10px] text-slate-500">
+                              {ex.muscleGroup}
+                            </p>
+                          </div>
+                          <p className="text-[11px] text-slate-300">
+                            {ex.sets}×{ex.reps} @ RIR {ex.rir}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                       <button
                         type="button"
                         onClick={() => navigate(`/workouts/session/${tpl.id}`)}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-semibold"
+                        className="btn-primary text-xs px-3 py-1.5"
                       >
                         Start workout
                       </button>
@@ -359,34 +440,18 @@ export const WorkoutTemplatesPage = () => {
                         type="button"
                         onClick={() => handleDeleteTemplate(tpl.id)}
                         disabled={deletingId === tpl.id}
-                        className="text-[11px] px-3 py-1 rounded-lg bg-red-900/60 border border-red-800 text-red-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="text-[11px] text-red-300 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {deletingId === tpl.id ? "Deleting…" : "Delete"}
                       </button>
                     </div>
                   </div>
-
-                  <ul className="space-y-1 text-sm mt-2">
-                    {tpl.exercises.map((ex) => (
-                      <li key={ex.id} className="flex justify-between">
-                        <span>
-                          {ex.name}{" "}
-                          <span className="text-slate-400">
-                            ({ex.muscleGroup})
-                          </span>
-                        </span>
-                        <span className="text-slate-300">
-                          {ex.sets} x {ex.reps} @ RIR {ex.rir}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </section>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
