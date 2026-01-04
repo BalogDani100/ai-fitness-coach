@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -6,10 +6,12 @@ import {
   registerRequest,
 } from "../features/auth/api/auth.client";
 import { useAuth } from "../app/providers/AuthProvider";
+import { useProfile } from "../app/providers/ProfileProvider";
 import { Sparkles } from "lucide-react";
 
 export const AuthPage = () => {
-  const { login } = useAuth();
+  const { token, login } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
   const navigate = useNavigate();
 
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -18,6 +20,16 @@ export const AuthPage = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // If the user is already signed in, redirect away from the auth screen.
+  // If they don't have a profile yet, force onboarding.
+  useEffect(() => {
+    if (!token) return;
+    if (profileLoading) return;
+
+    const target = profile ? "/dashboard" : "/profile/setup";
+    navigate(target, { replace: true });
+  }, [token, profileLoading, profile, navigate]);
 
   const title = mode === "login" ? "Sign in" : "Create account";
 
@@ -37,7 +49,12 @@ export const AuthPage = () => {
       const res = await fn(email.trim(), password);
 
       login(res.token, res.user);
-      navigate("/dashboard");
+
+      // After registration, go to the dedicated onboarding screen.
+      // After login, go to dashboard (if profile is missing, the guard will redirect).
+      navigate(mode === "register" ? "/profile/setup" : "/dashboard", {
+        replace: true,
+      });
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message || "Something went wrong");
@@ -47,6 +64,17 @@ export const AuthPage = () => {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (token && profileLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-6 text-slate-200">
+        <div className="card max-w-md text-center">
+          <p className="text-sm font-semibold">Loading…</p>
+          <p className="mt-1 text-xs text-slate-400">Signing you in.</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -73,9 +101,7 @@ export const AuthPage = () => {
             goals.
           </p>
           <div className="mt-5 flex flex-wrap gap-2 text-[11px] text-slate-400">
-            <span className="pill-accent pill">
-              Tracks workouts & nutrition
-            </span>
+            <span className="pill-accent pill">Tracks workouts & nutrition</span>
             <span className="pill">AI weekly coach</span>
             <span className="pill">Custom workout & meal plans</span>
           </div>
@@ -153,9 +179,7 @@ export const AuthPage = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  autoComplete={
-                    mode === "login" ? "current-password" : "new-password"
-                  }
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
                 />
               </div>
 

@@ -15,9 +15,9 @@ import type {
 } from "../features/profile/api/profile.dto";
 import { AppLayout } from "../app/layout/AppLayout";
 
-type Gender = "male" | "female";
-type Activity = "light" | "moderate" | "high";
-type Goal = "LOSE_FAT" | "GAIN_MUSCLE" | "MAINTAIN";
+type Gender = "male" | "female" | "";
+type Activity = "light" | "moderate" | "high" | "";
+type Goal = "LOSE_FAT" | "GAIN_MUSCLE" | "MAINTAIN" | "";
 
 const allDays = [
   { key: "Mon", label: "Monday" },
@@ -41,12 +41,13 @@ export const ProfilePage = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const [gender, setGender] = useState<Gender>("male");
-  const [age, setAge] = useState<number>(22);
-  const [heightCm, setHeightCm] = useState<number>(180);
-  const [weightKg, setWeightKg] = useState<number>(75);
-  const [activity, setActivity] = useState<Activity>("moderate");
-  const [goal, setGoal] = useState<Goal>("LOSE_FAT");
+  // IMPORTANT: start empty so new registrations don't look pre-filled.
+  const [gender, setGender] = useState<Gender>("");
+  const [age, setAge] = useState<string>("");
+  const [heightCm, setHeightCm] = useState<string>("");
+  const [weightKg, setWeightKg] = useState<string>("");
+  const [activity, setActivity] = useState<Activity>("");
+  const [goal, setGoal] = useState<Goal>("");
   const [days, setDays] = useState<string[]>([]);
 
   useEffect(() => {
@@ -67,9 +68,9 @@ export const ProfilePage = () => {
 
         if (res.profile) {
           setGender(res.profile.gender as Gender);
-          setAge(res.profile.age);
-          setHeightCm(res.profile.heightCm);
-          setWeightKg(res.profile.weightKg);
+          setAge(String(res.profile.age));
+          setHeightCm(String(res.profile.heightCm));
+          setWeightKg(String(res.profile.weightKg));
           setActivity(res.profile.activityLevel as Activity);
           setGoal(res.profile.goalType as Goal);
           setDays(
@@ -109,18 +110,48 @@ export const ProfilePage = () => {
     e.preventDefault();
     if (!token) return;
 
+    // Simple validation (keeps the UX consistent with onboarding)
+    if (!gender) {
+      setError("Please select your gender.");
+      return;
+    }
+    const parsedAge = Number(age);
+    const parsedHeight = Number(heightCm);
+    const parsedWeight = Number(weightKg);
+
+    if (!age.trim() || !Number.isFinite(parsedAge) || parsedAge <= 0) {
+      setError("Please enter a valid age.");
+      return;
+    }
+    if (!heightCm.trim() || !Number.isFinite(parsedHeight) || parsedHeight <= 0) {
+      setError("Please enter a valid height (cm).");
+      return;
+    }
+    if (!weightKg.trim() || !Number.isFinite(parsedWeight) || parsedWeight <= 0) {
+      setError("Please enter a valid weight (kg).");
+      return;
+    }
+    if (!activity) {
+      setError("Please select your activity level.");
+      return;
+    }
+    if (!goal) {
+      setError("Please select your goal.");
+      return;
+    }
+
     setError(null);
     setSuccess(null);
     setSaving(true);
 
     try {
       const payload: UpsertProfileRequest = {
-        gender,
-        age,
-        heightCm,
-        weightKg,
-        activityLevel: activity,
-        goalType: goal,
+        gender: gender as "male" | "female",
+        age: parsedAge,
+        heightCm: parsedHeight,
+        weightKg: parsedWeight,
+        activityLevel: activity as "light" | "moderate" | "high",
+        goalType: goal as "LOSE_FAT" | "GAIN_MUSCLE" | "MAINTAIN",
         trainingDays: days.join(","),
       };
 
@@ -315,7 +346,7 @@ export const ProfilePage = () => {
                       min={14}
                       max={100}
                       value={age}
-                      onChange={(e) => setAge(Number(e.target.value))}
+                      onChange={(e) => setAge(e.target.value)}
                     />
                   </div>
                 </div>
@@ -333,7 +364,7 @@ export const ProfilePage = () => {
                       min={120}
                       max={250}
                       value={heightCm}
-                      onChange={(e) => setHeightCm(Number(e.target.value))}
+                      onChange={(e) => setHeightCm(e.target.value)}
                     />
                   </div>
                   <div className="space-y-1">
@@ -349,7 +380,7 @@ export const ProfilePage = () => {
                       min={35}
                       max={250}
                       value={weightKg}
-                      onChange={(e) => setWeightKg(Number(e.target.value))}
+                      onChange={(e) => setWeightKg(e.target.value)}
                     />
                   </div>
                 </div>
