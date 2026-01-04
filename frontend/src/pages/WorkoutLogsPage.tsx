@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-import { deleteWorkoutLog, getWorkoutLogs } from "../api";
-import type { GetWorkoutLogsResponse, WorkoutLog, WorkoutSet } from "../api";
+import { useAuth } from "../app/providers/AuthProvider";
+import { deleteWorkoutLog, getWorkoutLogs } from "../features/workouts/api/workouts.client";
+import type { GetWorkoutLogsResponse, WorkoutLog, WorkoutSet } from "../features/workouts/api/workouts.dto";
+import { AppLayout } from "../app/layout/AppLayout";
 
 function groupSetsByExercise(sets: WorkoutSet[]) {
   const map = new Map<
@@ -54,7 +55,7 @@ export const WorkoutLogsPage = () => {
         setLogs(res.logs);
       } catch (err: unknown) {
         if (err instanceof Error) {
-          setError(err.message);
+          setError(err.message || "Failed to load workouts");
         } else {
           setError("Failed to load workouts");
         }
@@ -75,6 +76,7 @@ export const WorkoutLogsPage = () => {
 
   const handleFilter = async () => {
     if (!token) return;
+
     setError(null);
     setLoading(true);
 
@@ -96,7 +98,7 @@ export const WorkoutLogsPage = () => {
     }
   };
 
-  const handleDeleteLog = async (id: number) => {
+  const handleDelete = async (id: number) => {
     if (!token) return;
 
     const confirmed = window.confirm(
@@ -121,99 +123,138 @@ export const WorkoutLogsPage = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => navigate("/dashboard")}
-          className="text-sm text-slate-300 hover:text-white"
-        >
-          ← Back to Dashboard
-        </button>
-        <h1 className="text-lg font-semibold">Workout Logs</h1>
-        <div className="w-24" />
-      </header>
+  const logsCount = logs.length;
 
-      <main className="px-6 py-8 max-w-5xl mx-auto space-y-6">
+  return (
+    <AppLayout>
+      <div className="space-y-8">
         {error && (
-          <p className="text-sm text-red-400 bg-red-950/40 border border-red-800 rounded-lg px-3 py-2">
-            {error}
-          </p>
+          <div className="card border-red-500/60 bg-red-950/60 text-sm text-red-100">
+            <p className="font-semibold">Hiba történt</p>
+            <p className="mt-1 text-xs text-red-200">{error}</p>
+          </div>
         )}
 
-        <section>
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-4">
-            <h2 className="text-base font-semibold">Workout history</h2>
-            <div className="flex flex-wrap items-end gap-2">
-              <div>
-                <label className="block text-xs mb-1 text-slate-300">
-                  From
-                </label>
-                <input
-                  type="date"
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                  className="rounded-lg bg-slate-900 border border-slate-700 px-3 py-1.5 text-xs"
-                />
+        <section className="card">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Workout logs
+              </p>
+              <h1 className="mt-1 text-2xl font-semibold text-slate-50 sm:text-3xl">
+                History of your sessions
+              </h1>
+              <p className="mt-2 text-xs text-slate-400">
+                Review past workouts, see what weights and reps you used, and
+                how your training volume has evolved over time.
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-slate-950/70 p-3 text-xs">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Date filter
+              </p>
+              <div className="mt-2 flex flex-wrap items-end gap-2">
+                <div className="space-y-1">
+                  <label htmlFor="from" className="text-[11px]">
+                    From
+                  </label>
+                  <input
+                    id="from"
+                    type="date"
+                    value={from}
+                    onChange={(e) => setFrom(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="to" className="text-[11px]">
+                    To
+                  </label>
+                  <input
+                    id="to"
+                    type="date"
+                    value={to}
+                    onChange={(e) => setTo(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleFilter}
+                  className="btn-secondary mt-2 text-[11px]"
+                >
+                  Apply
+                </button>
               </div>
-              <div>
-                <label className="block text-xs mb-1 text-slate-300">To</label>
-                <input
-                  type="date"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  className="rounded-lg bg-slate-900 border border-slate-700 px-3 py-1.5 text-xs"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleFilter}
-                className="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700"
-              >
-                Filter
-              </button>
+              <p className="mt-2 text-[11px] text-slate-500">
+                Leave empty to see the full history.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="page-section-header">
+            <div>
+              <h2 className="page-section-title">Workout history</h2>
+              <p className="page-section-subtitle">
+                {logsCount === 0
+                  ? "No workouts logged for this period."
+                  : `Showing ${logsCount} workout${
+                      logsCount === 1 ? "" : "s"
+                    } in this range.`}
+              </p>
             </div>
           </div>
 
           {loading ? (
-            <p className="text-slate-300">Loading logs…</p>
+            <div className="mt-4 space-y-2 text-xs text-slate-400">
+              <div className="h-4 w-1/2 rounded bg-slate-800" />
+              <div className="h-4 w-2/3 rounded bg-slate-800" />
+              <div className="h-4 w-1/3 rounded bg-slate-800" />
+            </div>
           ) : logs.length === 0 ? (
-            <p className="text-slate-400 text-sm">
-              No logs for this period yet.
-            </p>
+            <div className="mt-4 rounded-xl border border-dashed border-slate-700/80 bg-slate-950/70 px-4 py-6 text-xs text-slate-400">
+              No logs for this period yet. Start workouts from your templates
+              and they will appear here automatically.
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div className="mt-3 space-y-3">
               {logs.map((log) => (
                 <div
                   key={log.id}
-                  className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-col gap-3"
+                  className="rounded-2xl bg-slate-950/80 p-4 ring-1 ring-slate-800/80 transition hover:ring-violet-500/70"
                 >
-                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                         {new Date(log.date).toLocaleDateString()}
                       </p>
-                      <p className="text-xs text-slate-400">
+                      <h3 className="mt-1 text-sm font-semibold text-slate-50">
                         {log.workoutTemplate
-                          ? `Template: ${log.workoutTemplate.name}`
-                          : "No template"}
+                          ? log.workoutTemplate.name
+                          : "Custom workout"}
+                      </h3>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        Logged at {new Date(log.createdAt).toLocaleString()}
                       </p>
                       {log.notes && (
-                        <p className="text-xs text-slate-300 mt-1">
-                          Notes: {log.notes}
+                        <p className="mt-2 text-[11px] text-slate-300">
+                          Notes:{" "}
+                          <span className="text-slate-200">{log.notes}</span>
                         </p>
                       )}
                     </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <p className="text-xs text-slate-500">
-                        Logged at: {new Date(log.createdAt).toLocaleString()}
-                      </p>
+
+                    <div className="flex flex-col items-end gap-2 text-right">
+                      <span className="pill text-[10px]">
+                        {log.sets?.length ?? 0} set
+                        {log.sets && log.sets.length === 1 ? "" : "s"}
+                      </span>
                       <button
                         type="button"
-                        onClick={() => handleDeleteLog(log.id)}
+                        onClick={() => handleDelete(log.id)}
                         disabled={deletingId === log.id}
-                        className="text-[11px] px-3 py-1 rounded-lg bg-red-900/60 border border-red-800 text-red-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="text-[11px] text-red-300 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {deletingId === log.id ? "Deleting…" : "Delete"}
                       </button>
@@ -221,47 +262,51 @@ export const WorkoutLogsPage = () => {
                   </div>
 
                   {log.sets && log.sets.length > 0 ? (
-                    <div className="mt-1 border-t border-slate-800 pt-2">
-                      <p className="text-xs font-semibold text-slate-300 mb-1">
+                    <div className="mt-3 border-t border-slate-800 pt-2">
+                      <p className="mb-2 text-xs font-semibold text-slate-300">
                         Sets
                       </p>
                       <div className="space-y-2 text-xs">
                         {groupSetsByExercise(log.sets).map((group) => (
                           <div
                             key={`${group.name}-${group.muscleGroup}`}
-                            className="space-y-0.5"
+                            className="space-y-1 rounded-xl bg-slate-950/80 p-2"
                           >
-                            <div className="text-slate-300 font-semibold">
-                              {group.name}{" "}
-                              <span className="text-slate-400">
-                                ({group.muscleGroup})
-                              </span>
-                            </div>
-                            {group.items.map((set) => (
-                              <div
-                                key={set.id}
-                                className="flex justify-between"
-                              >
-                                <span className="text-slate-400">
-                                  Set {set.setIndex}:
-                                </span>
-                                <span className="text-slate-100">
-                                  {set.weightKg} kg × {set.reps} reps
-                                  {set.rir !== null && (
-                                    <span className="text-slate-400">
-                                      {" "}
-                                      (RIR {set.rir})
-                                    </span>
-                                  )}
+                            <div className="flex items-center justify-between">
+                              <div className="text-slate-200 font-semibold">
+                                {group.name}{" "}
+                                <span className="text-slate-400 text-[11px]">
+                                  ({group.muscleGroup})
                                 </span>
                               </div>
-                            ))}
+                            </div>
+                            <div className="mt-1 space-y-0.5">
+                              {group.items.map((set) => (
+                                <div
+                                  key={set.id}
+                                  className="flex items-center justify-between text-[11px]"
+                                >
+                                  <span className="text-slate-400">
+                                    Set {set.setIndex}:
+                                  </span>
+                                  <span className="text-slate-100">
+                                    {set.weightKg} kg × {set.reps} reps
+                                    {set.rir !== null && (
+                                      <span className="text-slate-400">
+                                        {" "}
+                                        (RIR {set.rir})
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <p className="text-[11px] text-slate-500">
+                    <p className="mt-2 text-[11px] text-slate-500">
                       No detailed sets logged for this workout.
                     </p>
                   )}
@@ -270,7 +315,7 @@ export const WorkoutLogsPage = () => {
             </div>
           )}
         </section>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };

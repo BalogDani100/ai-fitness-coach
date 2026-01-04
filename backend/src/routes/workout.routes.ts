@@ -143,23 +143,20 @@ workoutRouter.get("/logs", async (req: AuthRequest, res) => {
   const { from, to } = req.query as { from?: string; to?: string };
 
   try {
+    const dateFilter: { gte?: Date; lte?: Date } = {};
+
+    if (from) {
+      dateFilter.gte = new Date(from);
+    }
+
+    if (to) {
+      dateFilter.lte = new Date(to);
+    }
+
     const logs = await prisma.workoutLog.findMany({
       where: {
         userId,
-        ...(from
-          ? {
-              date: {
-                gte: new Date(from),
-              },
-            }
-          : {}),
-        ...(to
-          ? {
-              date: {
-                lte: new Date(to),
-              },
-            }
-          : {}),
+        ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
       },
       orderBy: {
         date: "desc",

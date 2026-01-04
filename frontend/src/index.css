@@ -2,6 +2,234 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-slate-950 text-slate-100;
+html,
+body,
+#root {
+  height: 100%;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 antialiased;
+  }
+
+  h1 {
+    @apply text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl;
+  }
+
+  h2 {
+    @apply text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl;
+  }
+
+  h3 {
+    @apply text-xl font-semibold tracking-tight text-slate-100;
+  }
+
+  h4 {
+    @apply text-lg font-semibold text-slate-100;
+  }
+
+  p {
+    @apply text-sm text-slate-300 leading-relaxed;
+  }
+
+  a {
+    @apply text-sm font-medium text-violet-300 underline-offset-4 transition hover:text-violet-200 hover:underline;
+  }
+
+  label {
+    @apply text-xs font-medium uppercase tracking-[0.16em] text-slate-400;
+  }
+}
+
+@layer components {
+  button {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700/80 
+      bg-slate-900/80 px-4 py-2 text-sm font-medium text-slate-100 shadow-sm 
+      transition duration-150 ease-out;
+
+    transform: translateY(0);
+  }
+
+  button:hover:not(:disabled) {
+    @apply border-violet-500/80 bg-slate-900 text-white shadow-lg shadow-violet-500/25;
+    transform: translateY(-1px) scale(1.01);
+  }
+
+  button:active:not(:disabled) {
+    @apply shadow-none;
+    transform: translateY(0) scale(0.99);
+  }
+
+  button:disabled {
+    @apply cursor-not-allowed border-slate-800/80 bg-slate-900/60 text-slate-500 shadow-none;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-violet-500/80 
+      bg-gradient-to-br from-violet-500 to-indigo-500 px-4 py-2 text-sm font-semibold 
+      text-slate-50 shadow-md shadow-violet-500/40 transition duration-150 ease-out;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    @apply border-violet-400/90 from-violet-400 to-indigo-400 shadow-lg;
+    transform: translateY(-1px) scale(1.01);
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700/80 
+      bg-slate-900/80 px-4 py-2 text-sm font-medium text-slate-100 shadow-sm transition;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    @apply border-slate-500/80 bg-slate-900 shadow-md;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  textarea,
+  select {
+    @apply w-full rounded-xl border border-slate-800/80 bg-slate-900/80 px-3 py-2 text-sm 
+      text-slate-100 shadow-sm outline-none transition placeholder:text-slate-500;
+
+    box-shadow: 0 0 0 0 rgba(129, 140, 248, 0);
+  }
+
+  input[type="text"]:focus,
+  input[type="number"]:focus,
+  input[type="email"]:focus,
+  input[type="password"]:focus,
+  input[type="date"]:focus,
+  input[type="time"]:focus,
+  input[type="datetime-local"]:focus,
+  textarea:focus,
+  select:focus {
+    @apply border-violet-500/80;
+    box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.5);
+  }
+
+  textarea {
+    @apply min-h-[96px] resize-y;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    @apply h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-900 text-violet-500;
+  }
+
+  .card {
+    @apply rounded-2xl border border-slate-800/80 bg-slate-900/80 p-4 sm:p-6 shadow-lg shadow-black/40;
+    animation: card-pop 0.25s ease-out;
+  }
+
+  .sidebar-toggle {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-full
+    border border-slate-800/80 bg-slate-900/80 text-slate-200
+    shadow-sm transition hover:border-violet-500/80 hover:bg-slate-900
+    hover:text-white;
+
+    padding: 0;
+  }
+
+  .sidebar-toggle svg {
+    @apply h-4 w-4;
+  }
+  
+  .card-muted {
+    @apply rounded-2xl border border-slate-800/60 bg-slate-950/80 p-3 sm:p-4 shadow-inner shadow-black/40;
+  }
+
+  .page-section {
+    @apply card mb-6;
+  }
+
+  .page-section-header {
+    @apply mb-3 flex items-center justify-between gap-2;
+  }
+
+  .page-section-title {
+    @apply text-sm font-semibold text-slate-100;
+  }
+
+  .page-section-subtitle {
+    @apply text-xs text-slate-400;
+  }
+
+  .pill {
+    @apply inline-flex items-center rounded-full bg-slate-800/80 px-2.5 py-1 text-[11px] 
+      font-medium text-slate-200;
+  }
+
+  .pill-accent {
+    @apply bg-violet-500/15 text-violet-200;
+  }
+
+  table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  thead {
+    @apply bg-slate-900/90;
+  }
+
+  th {
+    @apply border-b border-slate-800/80 px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-400;
+  }
+
+  td {
+    @apply border-b border-slate-900/80 px-3 py-2 text-slate-200;
+  }
+
+  tr:hover td {
+    @apply bg-slate-900/50;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes card-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.9);
 }

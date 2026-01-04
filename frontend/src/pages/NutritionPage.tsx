@@ -1,32 +1,33 @@
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-import {
-  getProfileMe,
-  getMealEntries,
-  createMealEntry,
-  deleteMealEntry,
-} from "../api";
+import { useAuth } from "../app/providers/AuthProvider";
+import { getProfileMe } from "../features/profile/api/profile.client";
 import type {
   Macros,
-  GetMealEntriesResponse,
-  MealEntry,
-  MealDailyTotal,
-  CreateMealEntryRequest,
   ProfileMeResponse,
-} from "../api";
+} from "../features/profile/api/profile.dto";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
+  createMealEntry,
+  deleteMealEntry,
+  getMealEntries,
+} from "../features/nutrition/api/nutrition.client";
+import type {
+  CreateMealEntryRequest,
+  GetMealEntriesResponse,
+  MealDailyTotal,
+  MealEntry,
+} from "../features/nutrition/api/nutrition.dto";
+import { AppLayout } from "../app/layout/AppLayout";
 
-type NewMealForm = {
-  date: string;
+const TODAY_ISO = new Date().toISOString().slice(0, 10);
+
+function getPercent(current: number, target: number | null | undefined) {
+  if (!target || target <= 0) return 0;
+  return Math.round((current / target) * 100);
+}
+
+type MealFormState = {
   name: string;
   calories: string;
   protein: string;
@@ -34,157 +35,136 @@ type NewMealForm = {
   fat: string;
 };
 
-const TODAY_ISO = new Date().toISOString().slice(0, 10);
-
-type GroupedMealsByDate = {
-  date: string;
-  items: MealEntry[];
-};
-
-// segédfüggvény: összecsoportosítja a bejegyzéseket dátum szerint
-function groupEntriesByDate(entries: MealEntry[]): GroupedMealsByDate[] {
-  const map = new Map<string, GroupedMealsByDate>();
-
-  for (const e of entries) {
-    const key = e.date.slice(0, 10);
-    const existing = map.get(key);
-    if (!existing) {
-      map.set(key, { date: key, items: [e] });
-    } else {
-      existing.items.push(e);
-    }
-  }
-
-  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
-}
-
-// segédfüggvény: mai napi total kinyerése
-function getTodayTotal(totals: MealDailyTotal[]): MealDailyTotal | null {
-  return totals.find((t) => t.date === TODAY_ISO) || null;
-}
-
 export const NutritionPage = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
 
-  const [profileMacros, setProfileMacros] = useState<Macros | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>(TODAY_ISO);
+  const [macros, setMacros] = useState<Macros | null>(null);
   const [entries, setEntries] = useState<MealEntry[]>([]);
-  const [totals, setTotals] = useState<MealDailyTotal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [dailyTotal, setDailyTotal] = useState<MealDailyTotal | null>(null);
 
-  const [from, setFrom] = useState<string>("");
-  const [to, setTo] = useState<string>("");
-
-  const [form, setForm] = useState<NewMealForm>({
-    date: TODAY_ISO,
+  const [form, setForm] = useState<MealFormState>({
     name: "",
     calories: "",
     protein: "",
     carbs: "",
     fat: "",
   });
+
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
 
     let mounted = true;
 
-    (async () => {
+    const load = async () => {
       try {
+        setError(null);
+        setLoading(true);
+
         const [profileRes, mealsRes]: [
           ProfileMeResponse,
           GetMealEntriesResponse
-        ] = await Promise.all([getProfileMe(token), getMealEntries(token)]);
+        ] = await Promise.all([
+          getProfileMe(token),
+          getMealEntries(token, selectedDate, selectedDate),
+        ]);
 
         if (!mounted) return;
 
-        setProfileMacros(profileRes.macros);
-        setEntries(mealsRes.entries);
-        setTotals(mealsRes.totals);
+        setMacros(profileRes.macros);
+
+        const dayTotals =
+          mealsRes.totals.find((t) => t.date.slice(0, 10) === selectedDate) ??
+          null;
+        setDailyTotal(dayTotals);
+
+        const dateEntries = mealsRes.entries.filter(
+          (e) => e.date.slice(0, 10) === selectedDate
+        );
+        setEntries(dateEntries);
       } catch (err: unknown) {
         if (err instanceof Error) {
-          setError(err.message);
+          setError(err.message || "Failed to load nutrition data");
         } else {
           setError("Failed to load nutrition data");
         }
       } finally {
         if (mounted) setLoading(false);
       }
-    })();
+    };
+
+    load();
 
     return () => {
       mounted = false;
     };
-  }, [token]);
+  }, [token, selectedDate]);
 
   if (!token) {
     navigate("/login");
     return null;
   }
 
-  const handleFormChange = (field: keyof NewMealForm, value: string) => {
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+  const handleChange = (field: keyof MealFormState, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleCreateMeal = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!token) return;
 
-    setError(null);
+    const calories = Number(form.calories);
+    const protein = Number(form.protein);
+    const carbs = Number(form.carbs);
+    const fat = Number(form.fat);
 
-    if (
-      !form.date ||
-      !form.name.trim() ||
-      !form.calories ||
-      !form.protein ||
-      !form.carbs ||
-      !form.fat
-    ) {
-      setError("All fields are required.");
+    if (!form.name.trim()) {
+      setError("Meal name is required");
       return;
     }
+
+    if (Number.isNaN(calories) || calories <= 0) {
+      setError("Calories must be a positive number");
+      return;
+    }
+
+    setError(null);
+    setSaving(true);
 
     const payload: CreateMealEntryRequest = {
-      date: form.date,
+      date: selectedDate,
       name: form.name.trim(),
-      calories: Number(form.calories),
-      protein: Number(form.protein),
-      carbs: Number(form.carbs),
-      fat: Number(form.fat),
+      calories,
+      protein: Number.isNaN(protein) ? 0 : protein,
+      carbs: Number.isNaN(carbs) ? 0 : carbs,
+      fat: Number.isNaN(fat) ? 0 : fat,
     };
-
-    if (
-      Number.isNaN(payload.calories) ||
-      Number.isNaN(payload.protein) ||
-      Number.isNaN(payload.carbs) ||
-      Number.isNaN(payload.fat)
-    ) {
-      setError("Calories and macros must be numbers.");
-      return;
-    }
-
-    setSaving(true);
 
     try {
       await createMealEntry(token, payload);
 
-      const res = await getMealEntries(
+      const mealsRes: GetMealEntriesResponse = await getMealEntries(
         token,
-        from || undefined,
-        to || undefined
+        selectedDate,
+        selectedDate
       );
-      setEntries(res.entries);
-      setTotals(res.totals);
+      const dayTotals =
+        mealsRes.totals.find((t) => t.date.slice(0, 10) === selectedDate) ??
+        null;
+      setDailyTotal(dayTotals);
 
-      // reset form – todays date marad
+      const dateEntries = mealsRes.entries.filter(
+        (e) => e.date.slice(0, 10) === selectedDate
+      );
+      setEntries(dateEntries);
+
       setForm({
-        date: TODAY_ISO,
         name: "",
         calories: "",
         protein: "",
@@ -193,60 +173,37 @@ export const NutritionPage = () => {
       });
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message || "Failed to create meal");
+        setError(err.message || "Failed to create meal entry");
       } else {
-        setError("Failed to create meal");
+        setError("Failed to create meal entry");
       }
     } finally {
       setSaving(false);
     }
   };
 
-  const handleFilter = async () => {
+  const handleDelete = async (id: number) => {
     if (!token) return;
-    setError(null);
-    setLoading(true);
-
-    try {
-      const res = await getMealEntries(
-        token,
-        from || undefined,
-        to || undefined
-      );
-      setEntries(res.entries);
-      setTotals(res.totals);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message || "Failed to filter meals");
-      } else {
-        setError("Failed to filter meals");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteMeal = async (id: number) => {
-    if (!token) return;
-
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this meal entry?"
-    );
-    if (!confirmed) return;
-
-    setError(null);
     setDeletingId(id);
+    setError(null);
 
     try {
       await deleteMealEntry(token, id);
 
-      const res = await getMealEntries(
+      const mealsRes: GetMealEntriesResponse = await getMealEntries(
         token,
-        from || undefined,
-        to || undefined
+        selectedDate,
+        selectedDate
       );
-      setEntries(res.entries);
-      setTotals(res.totals);
+      const dayTotals =
+        mealsRes.totals.find((t) => t.date.slice(0, 10) === selectedDate) ??
+        null;
+      setDailyTotal(dayTotals);
+
+      const dateEntries = mealsRes.entries.filter(
+        (e) => e.date.slice(0, 10) === selectedDate
+      );
+      setEntries(dateEntries);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message || "Failed to delete meal");
@@ -258,321 +215,307 @@ export const NutritionPage = () => {
     }
   };
 
-  const groupedByDate = groupEntriesByDate(entries);
-  const todayTotal = getTodayTotal(totals);
+  const caloriesToday = dailyTotal?.calories ?? 0;
+  const proteinToday = dailyTotal?.protein ?? 0;
+  const carbsToday = dailyTotal?.carbs ?? 0;
+  const fatToday = dailyTotal?.fat ?? 0;
 
-  // Chart data: totals időrendben, date → lokális string + calories
-  const chartData = totals
-    .slice()
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((t) => ({
-      date: new Date(t.date).toLocaleDateString(),
-      calories: t.calories,
-    }));
+  const caloriesPercent = getPercent(
+    caloriesToday,
+    macros?.targetCalories ?? null
+  );
+  const proteinPercent = getPercent(proteinToday, macros?.proteinGrams ?? null);
+  const carbsPercent = getPercent(carbsToday, macros?.carbGrams ?? null);
+  const fatPercent = getPercent(fatToday, macros?.fatGrams ?? null);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => navigate("/dashboard")}
-          className="text-sm text-slate-300 hover:text-white"
-        >
-          ← Back to Dashboard
-        </button>
-        <h1 className="text-lg font-semibold">Nutrition & Meals</h1>
-        <div className="w-24" />
-      </header>
-
-      <main className="px-6 py-8 max-w-5xl mx-auto space-y-8">
+    <AppLayout>
+      <div className="space-y-8">
         {error && (
-          <p className="text-sm text-red-400 bg-red-950/40 border border-red-800 rounded-lg px-3 py-2">
-            {error}
-          </p>
+          <div className="card border-red-500/60 bg-red-950/60 text-sm text-red-100">
+            <p className="font-semibold">Hiba történt</p>
+            <p className="mt-1 text-xs text-red-200">{error}</p>
+          </div>
         )}
 
-        {/* Today summary card */}
-        <section className="grid md:grid-cols-2 gap-4">
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-xl">
-            <h2 className="text-sm font-semibold mb-2">
-              Today&apos;s calories
-            </h2>
-            {todayTotal ? (
-              <div className="space-y-1">
-                <p className="text-2xl font-bold">
-                  {todayTotal.calories}{" "}
-                  <span className="text-sm font-normal text-slate-400">
-                    kcal
+        <section className="card">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Nutrition diary
+              </p>
+              <h2 className="mt-1 text-xl font-semibold text-slate-50">
+                Daily calorie & macro tracking
+              </h2>
+              <p className="mt-2 text-xs text-slate-400">
+                Log your meals, see your totals for the day and compare them to
+                your target macros.
+              </p>
+            </div>
+
+            <div className="flex flex-col items-start gap-2 text-xs sm:items-end">
+              <label htmlFor="date" className="text-[10px] text-slate-400">
+                Selected date
+              </label>
+              <input
+                id="date"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 sm:w-auto"
+              />
+              {macros ? (
+                <p className="text-[11px] text-slate-400">
+                  Target:{" "}
+                  <span className="font-semibold text-slate-200">
+                    {macros.targetCalories} kcal
                   </span>
                 </p>
-                {profileMacros && (
-                  <p className="text-xs text-slate-400">
-                    Target: {profileMacros.targetCalories} kcal
-                  </p>
-                )}
-                <p className="text-xs text-slate-400 mt-2">
-                  Protein: {todayTotal.protein} g
-                  {profileMacros && ` / ${profileMacros.proteinGrams} g`}
-                  <br />
-                  Carbs: {todayTotal.carbs} g
-                  {profileMacros && ` / ${profileMacros.carbGrams} g`}
-                  <br />
-                  Fat: {todayTotal.fat} g
-                  {profileMacros && ` / ${profileMacros.fatGrams} g`}
-                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => navigate("/profile")}
+                  className="btn-secondary mt-1 text-[11px]"
+                >
+                  Set up profile for macros
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-4">
+            <SummaryCard
+              label="Calories"
+              value={`${caloriesToday} kcal`}
+              target={
+                macros ? `${macros.targetCalories} kcal` : "No target set"
+              }
+              percent={caloriesPercent}
+              barClass="bg-violet-500"
+            />
+            <SummaryCard
+              label="Protein"
+              value={`${proteinToday} g`}
+              target={macros ? `${macros.proteinGrams} g` : "No target"}
+              percent={proteinPercent}
+              barClass="bg-emerald-400"
+            />
+            <SummaryCard
+              label="Carbs"
+              value={`${carbsToday} g`}
+              target={macros ? `${macros.carbGrams} g` : "No target"}
+              percent={carbsPercent}
+              barClass="bg-sky-400"
+            />
+            <SummaryCard
+              label="Fat"
+              value={`${fatToday} g`}
+              target={macros ? `${macros.fatGrams} g` : "No target"}
+              percent={fatPercent}
+              barClass="bg-amber-400"
+            />
+          </div>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          <div className="card">
+            <div className="page-section-header">
+              <h3 className="page-section-title">Meals logged</h3>
+              <p className="page-section-subtitle">
+                {entries.length === 0
+                  ? "No meals logged for this day yet."
+                  : `${entries.length} meal${
+                      entries.length === 1 ? "" : "s"
+                    } logged`}
+              </p>
+            </div>
+
+            {loading ? (
+              <div className="mt-4 space-y-2 text-xs text-slate-400">
+                <div className="h-4 w-1/2 rounded bg-slate-800" />
+                <div className="h-4 w-2/3 rounded bg-slate-800" />
+                <div className="h-4 w-1/3 rounded bg-slate-800" />
+              </div>
+            ) : entries.length === 0 ? (
+              <div className="mt-4 rounded-xl border border-dashed border-slate-700/80 bg-slate-950/70 px-4 py-6 text-xs text-slate-400">
+                Start by adding your first meal for{" "}
+                <span className="font-medium text-slate-200">
+                  {selectedDate}
+                </span>
+                .
               </div>
             ) : (
-              <p className="text-sm text-slate-400">
-                No meals logged for today yet.
-              </p>
+              <div className="mt-4 overflow-x-auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Calories</th>
+                      <th>Protein</th>
+                      <th>Carbs</th>
+                      <th>Fat</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entries.map((entry) => (
+                      <tr key={entry.id}>
+                        <td>{entry.name}</td>
+                        <td>{entry.calories} kcal</td>
+                        <td>{entry.protein} g</td>
+                        <td>{entry.carbs} g</td>
+                        <td>{entry.fat} g</td>
+                        <td className="text-right">
+                          <button
+                            type="button"
+                            className="btn-secondary px-2 py-1 text-[11px]"
+                            onClick={() => handleDelete(entry.id)}
+                            disabled={deletingId === entry.id}
+                          >
+                            {deletingId === entry.id ? "Deleting..." : "Delete"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
-          {/* Quick info about macros source */}
-          <div className="bg-slate-900/40 border border-slate-800/70 rounded-2xl p-5 text-sm">
-            <h2 className="text-sm font-semibold mb-2">How this works</h2>
-            <p className="text-xs text-slate-300 mb-1">
-              Your daily calorie and macro targets come from your fitness
-              profile (age, weight, activity level, goal).
-            </p>
-            <p className="text-xs text-slate-400">
-              Log your meals below – we sum up the calories, protein, carbs and
-              fats per day so you can see how close you are to your targets.
-            </p>
-          </div>
-        </section>
-
-        {/* Calories trend chart */}
-        <section className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl">
-          <h2 className="text-sm font-semibold mb-3">
-            Calories trend (last logged days)
-          </h2>
-          {chartData.length === 0 ? (
-            <p className="text-xs text-slate-400">
-              No data yet. Add some meals to see your calorie trend over time.
-            </p>
-          ) : (
-            <div className="w-full h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 11, fill: "#94a3b8" }}
-                    tickMargin={8}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: "#94a3b8" }}
-                    tickMargin={4}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#020617",
-                      border: "1px solid #1e293b",
-                      borderRadius: "0.75rem",
-                      fontSize: "0.75rem",
-                    }}
-                    labelStyle={{ color: "#e2e8f0" }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="calories"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+          <div className="card">
+            <div className="page-section-header">
+              <h3 className="page-section-title">Add meal</h3>
+              <p className="page-section-subtitle">
+                Quickly log a new meal for{" "}
+                <span className="font-semibold text-slate-200">
+                  {selectedDate}
+                </span>
+                .
+              </p>
             </div>
-          )}
-        </section>
 
-        {/* Add meal form */}
-        <section className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl">
-          <h2 className="text-base font-semibold mb-4">Add meal</h2>
-
-          <form onSubmit={handleCreateMeal} className="space-y-4 text-sm">
-            <div className="grid gap-3 md:grid-cols-3">
-              <div>
-                <label className="block text-xs mb-1 text-slate-300">
-                  Date
-                </label>
+            <form onSubmit={handleSubmit} className="mt-4 space-y-4 text-sm">
+              <div className="space-y-1">
+                <label htmlFor="meal-name">Meal name</label>
                 <input
-                  type="date"
-                  value={form.date}
-                  onChange={(e) => handleFormChange("date", e.target.value)}
-                  className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-xs mb-1 text-slate-300">
-                  Meal name
-                </label>
-                <input
+                  id="meal-name"
                   type="text"
                   value={form.name}
-                  onChange={(e) => handleFormChange("name", e.target.value)}
-                  placeholder="Chicken & rice, protein shake..."
-                  className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm"
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  placeholder="e.g. Chicken and rice"
                 />
               </div>
-            </div>
 
-            <div className="grid gap-3 md:grid-cols-4">
-              <div>
-                <label className="block text-xs mb-1 text-slate-300">
-                  Calories (kcal)
-                </label>
-                <input
-                  type="number"
-                  value={form.calories}
-                  onChange={(e) => handleFormChange("calories", e.target.value)}
-                  className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm"
-                />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label htmlFor="calories">Calories (kcal)</label>
+                  <input
+                    id="calories"
+                    type="number"
+                    inputMode="decimal"
+                    value={form.calories}
+                    onChange={(e) => handleChange("calories", e.target.value)}
+                    placeholder="e.g. 650"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="protein">Protein (g)</label>
+                  <input
+                    id="protein"
+                    type="number"
+                    inputMode="decimal"
+                    value={form.protein}
+                    onChange={(e) => handleChange("protein", e.target.value)}
+                    placeholder="e.g. 45"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-xs mb-1 text-slate-300">
-                  Protein (g)
-                </label>
-                <input
-                  type="number"
-                  value={form.protein}
-                  onChange={(e) => handleFormChange("protein", e.target.value)}
-                  className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs mb-1 text-slate-300">
-                  Carbs (g)
-                </label>
-                <input
-                  type="number"
-                  value={form.carbs}
-                  onChange={(e) => handleFormChange("carbs", e.target.value)}
-                  className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs mb-1 text-slate-300">
-                  Fat (g)
-                </label>
-                <input
-                  type="number"
-                  value={form.fat}
-                  onChange={(e) => handleFormChange("fat", e.target.value)}
-                  className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
 
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 disabled:cursor-not-allowed text-slate-900 transition-colors"
-              >
-                {saving ? "Saving…" : "Save meal"}
-              </button>
-            </div>
-          </form>
-        </section>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label htmlFor="carbs">Carbs (g)</label>
+                  <input
+                    id="carbs"
+                    type="number"
+                    inputMode="decimal"
+                    value={form.carbs}
+                    onChange={(e) => handleChange("carbs", e.target.value)}
+                    placeholder="e.g. 70"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="fat">Fat (g)</label>
+                  <input
+                    id="fat"
+                    type="number"
+                    inputMode="decimal"
+                    value={form.fat}
+                    onChange={(e) => handleChange("fat", e.target.value)}
+                    placeholder="e.g. 15"
+                  />
+                </div>
+              </div>
 
-        {/* Filter + list */}
-        <section>
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-4">
-            <h2 className="text-base font-semibold">Meal history</h2>
-            <div className="flex flex-wrap items-end gap-2 text-xs">
-              <div>
-                <label className="block mb-1 text-slate-300">From</label>
-                <input
-                  type="date"
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                  className="rounded-lg bg-slate-900 border border-slate-700 px-3 py-1.5"
-                />
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <button type="submit" className="btn-primary" disabled={saving}>
+                  {saving ? "Saving..." : "Add meal"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary text-xs"
+                  onClick={() =>
+                    setForm({
+                      name: "",
+                      calories: "",
+                      protein: "",
+                      carbs: "",
+                      fat: "",
+                    })
+                  }
+                >
+                  Clear form
+                </button>
               </div>
-              <div>
-                <label className="block mb-1 text-slate-300">To</label>
-                <input
-                  type="date"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  className="rounded-lg bg-slate-900 border border-slate-700 px-3 py-1.5"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleFilter}
-                className="px-3 py-2 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700"
-              >
-                Filter
-              </button>
-            </div>
+            </form>
           </div>
-
-          {loading ? (
-            <p className="text-slate-300">Loading meals…</p>
-          ) : groupedByDate.length === 0 ? (
-            <p className="text-slate-400 text-sm">
-              No meals for this period yet.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {groupedByDate.map((group) => {
-                const total = totals.find((t) => t.date === group.date);
-                return (
-                  <div
-                    key={group.date}
-                    className="bg-slate-900/60 border border-slate-800 rounded-xl p-4"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <p className="text-sm font-medium">
-                          {new Date(group.date).toLocaleDateString()}
-                        </p>
-                        {total && (
-                          <p className="text-xs text-slate-400">
-                            Total: {total.calories} kcal – P {total.protein}g /
-                            C {total.carbs}g / F {total.fat}g
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <ul className="mt-2 space-y-1 text-xs">
-                      {group.items.map((e) => (
-                        <li
-                          key={e.id}
-                          className="flex items-center justify-between gap-2"
-                        >
-                          <div>
-                            <p className="font-medium text-slate-100">
-                              {e.name}
-                            </p>
-                            <p className="text-slate-400">
-                              {e.calories} kcal – P {e.protein}g / C {e.carbs}g
-                              / F {e.fat}g
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteMeal(e.id)}
-                            disabled={deletingId === e.id}
-                            className="text-[11px] px-3 py-1 rounded-lg bg-red-900/60 border border-red-800 text-red-200 disabled:opacity-60 disabled:cursor-not-allowed"
-                          >
-                            {deletingId === e.id ? "Deleting…" : "Delete"}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </section>
-      </main>
+      </div>
+    </AppLayout>
+  );
+};
+
+type SummaryCardProps = {
+  label: string;
+  value: string;
+  target: string;
+  percent: number;
+  barClass: string;
+};
+
+const SummaryCard = ({
+  label,
+  value,
+  target,
+  percent,
+  barClass,
+}: SummaryCardProps) => {
+  return (
+    <div className="card-muted">
+      <p className="text-xs font-semibold text-slate-400">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-slate-50">{value}</p>
+      <p className="mt-1 text-[11px] text-slate-400">
+        Target: <span className="text-slate-200">{target}</span>
+      </p>
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+        <div
+          className={`h-full rounded-full ${barClass}`}
+          style={{ width: `${Math.min(percent, 130)}%` }}
+        />
+      </div>
+      <p className="mt-1 text-[11px] text-slate-500">
+        {percent}% of target for this day
+      </p>
     </div>
   );
 };
