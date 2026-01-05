@@ -21,8 +21,6 @@ export const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // If the user is already signed in, redirect away from the auth screen.
-  // If they don't have a profile yet, force onboarding.
   useEffect(() => {
     if (!token) return;
     if (profileLoading) return;
@@ -50,8 +48,6 @@ export const AuthPage = () => {
 
       login(res.token, res.user);
 
-      // After registration, go to the dedicated onboarding screen.
-      // After login, go to dashboard (if profile is missing, the guard will redirect).
       navigate(mode === "register" ? "/profile/setup" : "/dashboard", {
         replace: true,
       });

@@ -44,7 +44,6 @@ export const ProfileSetupPage = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // IMPORTANT: start empty. We only fill if an existing profile is present.
   const [gender, setGender] = useState<Gender>("");
   const [age, setAge] = useState<string>("");
   const [heightCm, setHeightCm] = useState<string>("");
@@ -55,7 +54,6 @@ export const ProfileSetupPage = () => {
 
   useEffect(() => {
     if (!token) return;
-    // If the user already has a profile, there is nothing to set up.
     if (!loading && profile) {
       navigate("/dashboard", { replace: true });
       return;
@@ -109,11 +107,8 @@ export const ProfileSetupPage = () => {
       };
 
       const res: UpsertProfileResponse = await upsertProfile(token, payload);
-
-      // Update global profile cache so guards unlock immediately.
       await refresh();
 
-      // Safety: if backend returned a profile, proceed.
       if (res.profile) {
         navigate("/dashboard", { replace: true });
       }

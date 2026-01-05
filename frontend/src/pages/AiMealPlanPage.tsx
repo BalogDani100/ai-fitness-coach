@@ -151,7 +151,6 @@ export const AiMealPlanPage = () => {
   return (
     <AppLayout>
       <div className="space-y-8">
-        {/* ERROR */}
         {error && (
           <div className="card border-red-500/60 bg-red-950/60 text-sm text-red-100">
             <p className="font-semibold">Hiba történt</p>
@@ -159,9 +158,7 @@ export const AiMealPlanPage = () => {
           </div>
         )}
 
-        {/* HERO + FORM + LATEST PLAN */}
         <section className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-          {/* Hero + form */}
           <div className="card relative overflow-hidden">
             <div className="pointer-events-none absolute -left-10 top-[-40px] h-40 w-40 rounded-full bg-violet-500/20 blur-3xl" />
             <div className="pointer-events-none absolute right-[-40px] bottom-[-40px] h-48 w-48 rounded-full bg-fuchsia-400/10 blur-3xl" />
@@ -272,7 +269,6 @@ export const AiMealPlanPage = () => {
             </div>
           </div>
 
-          {/* Latest plan */}
           <div className="card">
             <div className="page-section-header">
               <div>
@@ -317,7 +313,6 @@ export const AiMealPlanPage = () => {
           </div>
         </section>
 
-        {/* HISTORY LIST */}
         <section className="card">
           <div className="page-section-header">
             <h3 className="page-section-title">Previous AI meal plans</h3>

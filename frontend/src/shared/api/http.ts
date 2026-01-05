@@ -1,9 +1,5 @@
 const DEFAULT_API_URL = "http://localhost:4000";
 
-/**
- * Prefer configuring API URL via Vite env:
- * - .env: VITE_API_URL=http://localhost:4000
- */
 export const API_URL: string =
   (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_URL ??
   DEFAULT_API_URL;

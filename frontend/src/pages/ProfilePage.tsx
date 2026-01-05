@@ -110,7 +110,6 @@ export const ProfilePage = () => {
     e.preventDefault();
     if (!token) return;
 
-    // Simple validation (keeps the UX consistent with onboarding)
     if (!gender) {
       setError("Please select your gender.");
       return;
