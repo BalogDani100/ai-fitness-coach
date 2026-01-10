@@ -256,8 +256,8 @@ export const Sidebar = () => {
       <div className="border-t border-slate-800/70 px-3 py-4 text-[11px] text-slate-500">
         {!collapsed ? (
           <p>
-            <span className="font-semibold text-slate-300">Tipp:</span> kérj AI
-            edzéstervet vagy étrendet a gyorsabb haladáshoz.
+            <span className="font-semibold text-slate-300">Tip:</span> Request
+            an AI training plan or diet plan for faster progress.
           </p>
         ) : (
           <p className="text-center">&copy; AI Coach</p>
